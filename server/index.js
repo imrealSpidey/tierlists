@@ -210,8 +210,25 @@ app.get('/api/auth/discord', (req, res, next) => {
 
 app.get('/api/auth/discord/callback', (req, res, next) => {
   const base = global.CLOUDFLARE_URL || process.env.PUBLIC_URL || 'http://localhost:3001';
-  passport.authenticate('discord', { callbackURL: `${base}/api/auth/discord/callback`, failureRedirect: '/' })(req, res, next);
-}, (req, res) => res.redirect('/'));
+  passport.authenticate('discord', { callbackURL: `${base}/api/auth/discord/callback` }, (err, user, info) => {
+    if (err) {
+      console.error('\n❌ ================= OAUTH ERROR ================= ❌');
+      console.error('Passport Error:', err.message);
+      if (err.oauthError && err.oauthError.data) {
+        console.error('Discord API Raw Response:', err.oauthError.data);
+      }
+      console.error('Callback URL used:', `${base}/api/auth/discord/callback`);
+      console.error('❌ =============================================== ❌\n');
+      return res.redirect('/?error=oauth_failed');
+    }
+    if (!user) return res.redirect('/');
+    
+    req.logIn(user, (loginErr) => {
+      if (loginErr) return next(loginErr);
+      return res.redirect('/');
+    });
+  })(req, res, next);
+});
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.user) return res.json({ success: true, user: null });
