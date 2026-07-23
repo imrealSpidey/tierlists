@@ -15,6 +15,7 @@ import { MongoClient } from 'mongodb';
 import MongoStore from 'connect-mongo';
 import crypto from 'crypto';
 import fs from 'fs';
+import { execSync, spawn } from 'child_process';
 
 dotenv.config();
 
@@ -291,6 +292,27 @@ app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 let discordClient = null;
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Engine running on port ${PORT} (0.0.0.0)`);
+  
+  // Auto-start Cloudflare Tunnel if token is provided
+  if (process.env.CLOUDFLARE_TOKEN) {
+    console.log('☁️ CLOUDFLARE_TOKEN detected. Starting native tunnel...');
+    try {
+      if (!fs.existsSync('./cloudflared')) {
+        console.log('☁️ Downloading cloudflared binary...');
+        execSync('curl -L -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64');
+        execSync('chmod +x cloudflared');
+      }
+      
+      const cf = spawn('./cloudflared', ['tunnel', '--no-autoupdate', 'run', '--token', process.env.CLOUDFLARE_TOKEN], { stdio: 'pipe' });
+      
+      cf.stdout.on('data', d => console.log(`[Cloudflare] ${d.toString().trim()}`));
+      cf.stderr.on('data', d => console.log(`[Cloudflare] ${d.toString().trim()}`));
+      cf.on('close', code => console.log(`[Cloudflare] Tunnel exited with code ${code}`));
+    } catch (e) {
+      console.error('❌ Failed to start Cloudflare tunnel:', e.message);
+    }
+  }
+
   discordClient = initDiscordBotCore({
     token: process.env.DISCORD_BOT_TOKEN,
     clientId: process.env.DISCORD_CLIENT_ID,
