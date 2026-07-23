@@ -38,9 +38,21 @@ export async function searchImages(query) {
         const data = await imgRes.json();
         const rawResults = data.results || [];
 
-        // Filter and clean image results for relevance & valid direct image extension
+        // Known domains that block hotlinking or break Discord/canvas embeds
+        const BAD_DOMAINS = ['fandom.com', 'wikia.nocookie.net', 'pximg.net', 'shutterstock.com', 'gettyimages.com', 'tiktok.com', 'instagram.com', 'pinterest.com'];
+
+        const isValidImage = (url) => {
+          if (!url || typeof url !== 'string') return false;
+          if (!url.startsWith('http://') && !url.startsWith('https://')) return false;
+          // Must end with a valid image extension (ignoring query params)
+          if (!url.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i)) return false;
+          // Must not be from a known bad hotlinking domain
+          if (BAD_DOMAINS.some(domain => url.toLowerCase().includes(domain))) return false;
+          return true;
+        };
+
         const cleanResults = rawResults
-          .filter(r => r.image && typeof r.image === 'string' && (r.image.startsWith('http://') || r.image.startsWith('https://')))
+          .filter(r => isValidImage(r.image))
           .map(r => ({
             title: r.title || cleanQuery,
             url: r.image,
