@@ -13,6 +13,7 @@ export default function TierListBoard({ tierList, activeGuildId, onUpdateTierLis
   const [aspectRatio, setAspectRatio] = useState('square'); // 'square', 'original'
   const [showAddModal, setShowAddModal] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [textItemInput, setTextItemInput] = useState('');
 
   if (!tierList) return null;
 
@@ -126,6 +127,26 @@ export default function TierListBoard({ tierList, activeGuildId, onUpdateTierLis
       ...tierList,
       items: [...tierList.items, newItem]
     });
+  };
+
+  // Add Pure Text Item
+  const addTextItem = (e) => {
+    e.preventDefault();
+    if (!textItemInput.trim()) return;
+
+    const newItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      name: textItemInput.trim(),
+      imageUrl: null,
+      currentTier: null // Unranked bank
+    };
+
+    onUpdateTierList({
+      ...tierList,
+      items: [...(tierList.items || []), newItem]
+    });
+    setTextItemInput('');
+    setShowAddModal(false);
   };
 
   // Handle Local File Upload with HTML5 Canvas Compression
@@ -379,6 +400,29 @@ export default function TierListBoard({ tierList, activeGuildId, onUpdateTierLis
                 >
                   <Search className="w-4 h-4" />
                   {searching ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+            </form>
+
+            {/* 3. Add Pure Text Item */}
+            <form onSubmit={addTextItem} className="flex flex-col gap-3">
+              <label className="text-sm font-semibold text-slate-300">
+                Add Text-Only Item:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={textItemInput}
+                  onChange={(e) => setTextItemInput(e.target.value)}
+                  placeholder="e.g. A book title, a character name..."
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!textItemInput.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm px-6 py-2.5 rounded-lg transition"
+                >
+                  + Add Text
                 </button>
               </div>
             </form>
