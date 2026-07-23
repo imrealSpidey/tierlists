@@ -3,7 +3,7 @@ import { Settings, ChevronUp, ChevronDown, Download, RotateCcw, Search, Upload, 
 import html2canvas from 'html2canvas';
 import RowSettingsModal from './RowSettingsModal';
 
-export default function TierListBoard({ tierList, activeGuildId, onUpdateTierList, onVote, onSelectItem, onResetVotes, onPublishComplete, isStreamMode = false }) {
+export default function TierListBoard({ tierList, activeGuildId, user, onUpdateTierList, onVote, onSelectItem, onResetVotes, onPublishComplete, isStreamMode = false }) {
   const [activeSettingsTier, setActiveSettingsTier] = useState(null);
   const [draggedItem, setDraggedItem] = useState(null);
   const [downloading, setDownloading] = useState(false);
@@ -513,7 +513,7 @@ export default function TierListBoard({ tierList, activeGuildId, onUpdateTierLis
           Add / Search Items
         </button>
 
-        {tierList.mode !== 'personal' && (
+        {tierList.mode !== 'personal' && tierList.creatorId === user?.id && (
           <button
             onClick={publishToDiscord}
             disabled={publishing}

@@ -215,10 +215,14 @@ export function initDiscordBotCore({ token, clientId, stateEngine }) {
       if (interaction.isStringSelectMenu() && customId.startsWith('tl_select_')) {
         const activeListId = customId.replace('tl_select_', '');
         const selectedItemId = interaction.values[0];
-        userSelectedItems.set(userId, { itemId: selectedItemId, tierListId: activeListId });
-
+        
         const list = await stateEngine.getTierList(guildId, activeListId);
-        const item = list?.items.find(i => i.id === selectedItemId);
+        if (!list) {
+          return interaction.reply({ content: '❌ This tier list is no longer active or was deleted.', ephemeral: true });
+        }
+        
+        userSelectedItems.set(userId, { itemId: selectedItemId, tierListId: activeListId });
+        const item = list.items.find(i => i.id === selectedItemId);
 
         return interaction.reply({
           content: `Selected **${item ? item.name : selectedItemId}**. Now click a Tier button below (S, A, B, C, D, F) to record your vote.`,
@@ -236,6 +240,8 @@ export function initDiscordBotCore({ token, clientId, stateEngine }) {
             ephemeral: true
           });
         }
+        
+        await interaction.deferReply({ ephemeral: true });
 
         const result = await stateEngine.recordVote({
           guildId,
@@ -248,12 +254,11 @@ export function initDiscordBotCore({ token, clientId, stateEngine }) {
         });
 
         if (!result.success) {
-          return interaction.reply({ content: `Error: ${result.message}`, ephemeral: true });
+          return interaction.editReply({ content: `Error: ${result.message}` });
         }
 
-        await interaction.reply({
-          content: `Vote recorded for **${result.item.name}** -> **Tier ${tier}** (Current average: ${result.item.averageScore.toFixed(2)}/5.0).`,
-          ephemeral: true
+        await interaction.editReply({
+          content: `Vote recorded for **${result.item.name}** -> **Tier ${tier}** (Current average: ${result.item.averageScore.toFixed(2)}/5.0).`
         });
 
         if (activeChannelPanelMessage) {

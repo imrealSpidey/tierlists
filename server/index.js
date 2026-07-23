@@ -90,6 +90,7 @@ const stateEngine = {
       imageUrl: item.imageUrl || item.url || '',
       defaultTier: item.defaultTier || null,
       currentTier: item.currentTier || item.defaultTier || null,
+      voterMap: item.voterMap || {},
       votes: item.votes || { S: 0, A: 0, B: 0, C: 0, D: 0, F: 0 },
       averageScore: item.averageScore || 0
     };
@@ -106,26 +107,66 @@ const stateEngine = {
     const item = list.items.find(i => i.id === itemId);
     if (!item) return { success: false, message: 'Item not found in tier list' };
 
-    if (!item.votes) item.votes = {};
-    item.votes[tier] = (item.votes[tier] || 0) + 1;
+    if (!item.voterMap) item.voterMap = {};
+    if (!item.votes) item.votes = { S: 0, A: 0, B: 0, C: 0, D: 0, F: 0 };
 
+    // Record the user's vote (overwriting any previous vote)
+    if (voterId) {
+      item.voterMap[voterId] = tier;
+    } else {
+      // Fallback if no voterId (shouldn't happen with the new system)
+      item.votes[tier] = (item.votes[tier] || 0) + 1;
+    }
+
+    // Recalculate total votes based on voterMap
+    const newVotes = { S: 0, A: 0, B: 0, C: 0, D: 0, F: 0 };
+    Object.values(item.voterMap).forEach(t => {
+      newVotes[t] = (newVotes[t] || 0) + 1;
+    });
+    
+    // For any anonymous votes previously recorded, we add them to the tallied counts
+    // (This is just to support legacy data gracefully)
+    Object.keys(item.votes).forEach(t => {
+      if (item.votes[t] > newVotes[t] && Object.keys(item.voterMap).length === 0) {
+        newVotes[t] = item.votes[t];
+      }
+    });
+
+    item.votes = newVotes;
+
+    // Plurality logic: find the tier with the most votes
+    let highestTier = null;
+    let highestCount = -1;
+    
     const tiers = list.tiers || [];
+    tiers.forEach(t => {
+      const count = item.votes[t.id] || 0;
+      if (count > highestCount) {
+        highestCount = count;
+        highestTier = t.id;
+      }
+    });
+
+    // Calculate average score for sorting within tiers
     const maxWeight = tiers.length - 1;
     const weights = {};
-    tiers.forEach((t, i) => {
-      weights[t.id] = maxWeight - i;
-    });
+    tiers.forEach((t, i) => { weights[t.id] = maxWeight - i; });
 
     let totalVotes = 0;
     let weightedSum = 0;
-
     Object.entries(item.votes).forEach(([t, count]) => {
       totalVotes += count;
       weightedSum += count * (weights[t] || 0);
     });
 
     item.averageScore = totalVotes > 0 ? weightedSum / totalVotes : 0;
-    item.currentTier = tier;
+    
+    // Shift item based on plurality
+    if (highestTier && highestCount > 0) {
+      item.currentTier = highestTier;
+    } else {
+      item.currentTier = tier; // Fallback
+    }
 
     list.items.sort((a, b) => b.averageScore - a.averageScore);
     
@@ -279,8 +320,10 @@ app.post('/api/guilds/:guildId/tierlists', async (req, res) => {
       { id: 'D', name: 'D', color: '#7fbfff' },
       { id: 'F', name: 'F', color: '#ff7fbf' }
     ],
-    items: (req.body.items || []).map(i => ({ ...i, id: crypto.randomUUID(), votes: { S: 0, A: 0, B: 0, C: 0, D: 0, F: 0 } })),
-    createdAt: Date.now()
+    items: (req.body.items || []).map(i => ({ ...i, id: crypto.randomUUID(), voterMap: {}, votes: { S: 0, A: 0, B: 0, C: 0, D: 0, F: 0 } })),
+    createdAt: Date.now(),
+    creatorId: req.user ? req.user.id : null,
+    creatorName: req.user ? (req.user.username || req.user.global_name) : null
   };
   await stateEngine.saveTierList(guildId, id, newList);
   res.json({ success: true, tierList: newList });

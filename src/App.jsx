@@ -330,6 +330,8 @@ export default function App() {
         ) : viewMode === 'dashboard' ? (
           <Dashboard 
             tierLists={tierLists} 
+            user={user}
+            activeGuildId={activeGuildId}
             onCreateNew={() => setShowCreatorModal(true)} 
             onSelectList={(id) => {
               setActiveListId(id);
@@ -350,6 +352,7 @@ export default function App() {
           <TierListBoard
             tierList={activeTierList}
             activeGuildId={activeGuildId}
+            user={user}
             onUpdateTierList={handleUpdateTierList}
             onVote={handleVote}
             onSelectItem={setSelectedItem}
