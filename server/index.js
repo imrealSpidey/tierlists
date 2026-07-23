@@ -214,7 +214,18 @@ app.get('/api/auth/discord/callback', (req, res, next) => {
   const dynamicCallback = `${isHttps ? 'https' : 'http'}://${req.get('host')}/api/auth/discord/callback`;
   passport.authenticate('discord', { callbackURL: dynamicCallback, failureRedirect: '/' })(req, res, next);
 }, (req, res) => res.redirect('/'));
-app.get('/api/auth/me', (req, res) => res.json({ success: true, user: req.user || null }));
+
+app.get('/api/auth/me', (req, res) => {
+  if (!req.user) return res.json({ success: true, user: null });
+  
+  // Only return guilds where the Discord Bot is actually a member
+  const filteredGuilds = req.user.guilds ? req.user.guilds.filter(guild => 
+    discordClient && discordClient.guilds.cache.has(guild.id)
+  ) : [];
+  
+  res.json({ success: true, user: { ...req.user, guilds: filteredGuilds } });
+});
+
 app.post('/api/auth/logout', (req, res) => req.logout(() => res.json({ success: true })));
 
 app.put('/api/guilds/:guildId/tierlists/:id', async (req, res) => {
