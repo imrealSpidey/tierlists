@@ -183,7 +183,7 @@ passport.use(new DiscordStrategy({
   scope: ['identify', 'guilds']
 }, (accessToken, refreshToken, profile, done) => done(null, profile)));
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.SERVER_PORT || process.env.PORT || 3001;
 
 io.on('connection', (socket) => {
   socket.on('join_guild', async (guildId) => {
@@ -289,8 +289,8 @@ app.use(express.static(distPath));
 app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 
 let discordClient = null;
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Engine running on http://localhost:${PORT}`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Engine running on port ${PORT} (0.0.0.0)`);
   discordClient = initDiscordBotCore({
     token: process.env.DISCORD_BOT_TOKEN,
     clientId: process.env.DISCORD_CLIENT_ID,
