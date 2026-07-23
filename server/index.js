@@ -203,9 +203,15 @@ app.get('/api/guilds/:guildId/tierlists/:id', async (req, res) => {
   list ? res.json({ success: true, tierList: list }) : res.status(404).json({ success: false });
 });
 
-app.get('/api/auth/discord', passport.authenticate('discord'));
+app.get('/api/auth/discord', (req, res, next) => {
+  const base = global.CLOUDFLARE_URL || process.env.PUBLIC_URL || 'http://localhost:3001';
+  passport.authenticate('discord', { callbackURL: `${base}/api/auth/discord/callback` })(req, res, next);
+});
 
-app.get('/api/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => res.redirect('/'));
+app.get('/api/auth/discord/callback', (req, res, next) => {
+  const base = global.CLOUDFLARE_URL || process.env.PUBLIC_URL || 'http://localhost:3001';
+  passport.authenticate('discord', { callbackURL: `${base}/api/auth/discord/callback`, failureRedirect: '/' })(req, res, next);
+}, (req, res) => res.redirect('/'));
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.user) return res.json({ success: true, user: null });
@@ -329,12 +335,13 @@ httpServer.listen(PORT, '0.0.0.0', () => {
           const match = output.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
           if (match) {
             urlFound = true;
-            console.log('\\n======================================================');
+            global.CLOUDFLARE_URL = match[0]; // Save it globally to fix the OAuth Catch-22
+            console.log('\n======================================================');
             console.log('🎉 YOUR FREE PUBLIC WEBSITE URL IS:');
             console.log(`👉 ${match[0]}`);
-            console.log('======================================================\\n');
-            console.log('⚠️ IMPORTANT: Put this exact URL in your .env as PUBLIC_URL');
-            console.log(`⚠️ AND add ${match[0]}/api/auth/discord/callback to Discord Developer Portal!\\n`);
+            console.log('======================================================\n');
+            console.log('⚠️ IMPORTANT: Copy the URL above and put it in Discord Developer Portal!');
+            console.log(`👉 ${match[0]}/api/auth/discord/callback\n`);
           }
         }
       });
