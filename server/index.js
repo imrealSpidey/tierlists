@@ -203,8 +203,17 @@ app.get('/api/guilds/:guildId/tierlists/:id', async (req, res) => {
   list ? res.json({ success: true, tierList: list }) : res.status(404).json({ success: false });
 });
 
-app.get('/api/auth/discord', passport.authenticate('discord'));
-app.get('/api/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => res.redirect('/'));
+app.get('/api/auth/discord', (req, res, next) => {
+  const isHttps = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.hostname.includes('trycloudflare');
+  const dynamicCallback = `${isHttps ? 'https' : 'http'}://${req.get('host')}/api/auth/discord/callback`;
+  passport.authenticate('discord', { callbackURL: dynamicCallback })(req, res, next);
+});
+
+app.get('/api/auth/discord/callback', (req, res, next) => {
+  const isHttps = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.hostname.includes('trycloudflare');
+  const dynamicCallback = `${isHttps ? 'https' : 'http'}://${req.get('host')}/api/auth/discord/callback`;
+  passport.authenticate('discord', { callbackURL: dynamicCallback, failureRedirect: '/' })(req, res, next);
+}, (req, res) => res.redirect('/'));
 app.get('/api/auth/me', (req, res) => res.json({ success: true, user: req.user || null }));
 app.post('/api/auth/logout', (req, res) => req.logout(() => res.json({ success: true })));
 
