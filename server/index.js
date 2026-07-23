@@ -293,24 +293,42 @@ let discordClient = null;
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Engine running on port ${PORT} (0.0.0.0)`);
   
-  // Auto-start Cloudflare Tunnel if token is provided
-  if (process.env.CLOUDFLARE_TOKEN) {
-    console.log('☁️ CLOUDFLARE_TOKEN detected. Starting native tunnel...');
-    try {
-      if (!fs.existsSync('./cloudflared')) {
-        console.log('☁️ Downloading cloudflared binary...');
-        execSync('curl -L -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64');
-        execSync('chmod +x cloudflared');
-      }
-      
+  // Auto-start Cloudflare Tunnel
+  try {
+    if (!fs.existsSync('./cloudflared')) {
+      console.log('☁️ Downloading cloudflared binary...');
+      execSync('curl -L -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64');
+      execSync('chmod +x cloudflared');
+    }
+
+    if (process.env.CLOUDFLARE_TOKEN) {
+      console.log('☁️ CLOUDFLARE_TOKEN detected. Starting native secure tunnel...');
       const cf = spawn('./cloudflared', ['tunnel', '--no-autoupdate', 'run', '--token', process.env.CLOUDFLARE_TOKEN], { stdio: 'pipe' });
-      
       cf.stdout.on('data', d => console.log(`[Cloudflare] ${d.toString().trim()}`));
       cf.stderr.on('data', d => console.log(`[Cloudflare] ${d.toString().trim()}`));
-      cf.on('close', code => console.log(`[Cloudflare] Tunnel exited with code ${code}`));
-    } catch (e) {
-      console.error('❌ Failed to start Cloudflare tunnel:', e.message);
+    } else {
+      console.log('☁️ No domain? No problem! Requesting a FREE Cloudflare Quick Tunnel...');
+      const cf = spawn('./cloudflared', ['tunnel', '--url', `http://localhost:${PORT}`], { stdio: 'pipe' });
+      
+      let urlFound = false;
+      cf.stderr.on('data', d => {
+        const output = d.toString();
+        if (!urlFound) {
+          const match = output.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
+          if (match) {
+            urlFound = true;
+            console.log('\\n======================================================');
+            console.log('🎉 YOUR FREE PUBLIC WEBSITE URL IS:');
+            console.log(`👉 ${match[0]}`);
+            console.log('======================================================\\n');
+            console.log('⚠️ IMPORTANT: Put this exact URL in your .env as PUBLIC_URL');
+            console.log(`⚠️ AND add ${match[0]}/api/auth/discord/callback to Discord Developer Portal!\\n`);
+          }
+        }
+      });
     }
+  } catch (e) {
+    console.error('❌ Failed to start Cloudflare tunnel:', e.message);
   }
 
   discordClient = initDiscordBotCore({
