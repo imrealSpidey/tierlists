@@ -213,20 +213,21 @@ export function initDiscordBotCore({ token, clientId, stateEngine }) {
       const guildId = interaction.guildId;
 
       if (interaction.isStringSelectMenu() && customId.startsWith('tl_select_')) {
+        await interaction.deferReply({ ephemeral: true });
+        
         const activeListId = customId.replace('tl_select_', '');
         const selectedItemId = interaction.values[0];
         
         const list = await stateEngine.getTierList(guildId, activeListId);
         if (!list) {
-          return interaction.reply({ content: '❌ This tier list is no longer active or was deleted.', ephemeral: true });
+          return interaction.editReply({ content: '❌ This tier list is no longer active or was deleted.' });
         }
         
         userSelectedItems.set(userId, { itemId: selectedItemId, tierListId: activeListId });
         const item = list.items.find(i => i.id === selectedItemId);
 
-        return interaction.reply({
-          content: `Selected **${item ? item.name : selectedItemId}**. Now click a Tier button below (S, A, B, C, D, F) to record your vote.`,
-          ephemeral: true
+        return interaction.editReply({
+          content: `Selected **${item ? item.name : selectedItemId}**. Now click a Tier button below (S, A, B, C, D, F) to record your vote.`
         });
       }
 
